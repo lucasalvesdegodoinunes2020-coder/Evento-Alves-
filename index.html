@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eventos do Ano</title>
+<style>
+:root{color-scheme:dark;--muted:#aab2d5}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:radial-gradient(circle at top,#27234b 0,#101323 55%);color:#fff;min-height:100vh;transition:background .5s}
+header{text-align:center;padding:38px 18px 24px}
+.eyebrow{color:#bdb5ff;text-transform:uppercase;letter-spacing:3px;font-size:.78rem;font-weight:bold}
+h1{margin:10px 0;font-size:clamp(2rem,6vw,3.3rem)}
+header p{color:var(--muted);max-width:650px;margin:0 auto;line-height:1.5}
+main{width:min(1100px,92%);margin:0 auto 45px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.event{background:linear-gradient(145deg,#222944,#191d31);border:1px solid #343a5b;border-radius:22px;padding:22px;min-height:285px;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:0 12px 28px #0003;transition:transform .2s,border-color .3s,background .4s}
+.event:hover{transform:translateY(-3px)}
+.event::after{content:"";position:absolute;width:130px;height:130px;right:-50px;top:-50px;background:var(--event-color,#8c7bff);opacity:.17;border-radius:50%;pointer-events:none}
+.event.is-open{background:linear-gradient(145deg,var(--open1),var(--open2));border-color:var(--event-color);box-shadow:0 0 25px color-mix(in srgb,var(--event-color) 20%,transparent)}
+.emoji{font-size:2.7rem;margin-bottom:14px}
+.event h2{margin:0 0 8px;font-size:1.35rem}
+.date{color:#c0c6e1;font-size:.92rem;margin-bottom:14px}
+.status{align-self:flex-start;border-radius:999px;padding:7px 11px;font-size:.75rem;font-weight:bold;letter-spacing:.4px;margin-bottom:13px;background:#3a315c;color:#d9d2ff}
+.status.open{background:#102e28;color:#9dffdb}
+.countdown{font-size:.93rem;color:#e0e3f7;line-height:1.5;margin-top:auto}
+.theme-label{font-size:.78rem;color:#fff;opacity:.85;margin-top:8px}
+button{border:0;border-radius:12px;padding:12px 14px;margin-top:17px;background:#8c7bff;color:white;font-size:.95rem;font-weight:bold;cursor:pointer;transition:transform .15s,filter .15s}
+button:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.event.is-open button{background:var(--event-color);color:#151526}
+.note{color:var(--muted);text-align:center;font-size:.84rem;line-height:1.5;margin:25px auto 0;max-width:760px}
+dialog{width:min(440px,calc(100% - 32px));border:1px solid var(--modal-color,#555b83);border-radius:20px;background:linear-gradient(145deg,var(--modal-bg1,#202541),var(--modal-bg2,#171b30));color:white;padding:26px;box-shadow:0 25px 80px #0009}
+dialog::backdrop{background:#050711bb;backdrop-filter:blur(5px)}
+dialog h2{margin-top:0}
+dialog p{color:#e0e3f7;line-height:1.55}
+.modal-count{background:#14182b;padding:13px;border-radius:12px;text-align:center;font-weight:bold;line-height:1.5}
+.close{width:100%;background:var(--modal-color,#8c7bff)}
+footer{text-align:center;color:#737da6;font-size:.8rem;padding:0 15px 25px}
+</style>
+</head>
+<body>
+<header>
+<div class="eyebrow">Calendário especial</div>
+<h1>Eventos do Ano</h1>
+<p>Cada evento tem seu próprio tema visual e só fica desbloqueado durante o dia comemorativo.</p>
+</header>
+<main>
+<section class="grid" id="events"></section>
+<p class="note">A contagem é atualizada automaticamente. As datas são calculadas para o ano atual e o próximo, usando a data e a hora local do dispositivo.</p>
+</main>
+<footer>Um calendário feito para celebrar cada ocasião.</footer>
+<div id="unlockToast" role="status" aria-live="polite" style="position:fixed;left:50%;bottom:22px;transform:translate(-50%,18px);opacity:0;pointer-events:none;z-index:1000;width:min(520px,calc(100% - 28px));padding:16px 20px;border-radius:16px;background:#173e32;border:1px solid #4bd5a0;color:#e4fff4;font-weight:bold;text-align:center;box-shadow:0 12px 35px #0007;transition:opacity .25s,transform .25s"></div>
+<dialog id="eventDialog">
+<h2 id="dialogTitle">Evento</h2>
+<p id="dialogMessage"></p>
+<div class="modal-count" id="dialogCountdown"></div>
+<button class="close" id="closeDialog">Entendi</button>
+</dialog>
+<script>
+function easterSunday(year){
+ const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+ const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+ const month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+ return new Date(year,month-1,day);
+}
+function nthWeekday(year,month,weekday,n){
+ const d=new Date(year,month,1);
+ return new Date(year,month,1+((weekday-d.getDay()+7)%7)+(n-1)*7);
+}
+function lastSundayOfMarch(year){return nthWeekday(year,2,0,5).getMonth()===2?nthWeekday(year,2,0,5):nthWeekday(year,2,0,4)}
+function eventDate(type,y){
+ if(type==="carnaval"){const d=easterSunday(y);d.setDate(d.getDate()-47);return d}
+ if(type==="pascoa")return easterSunday(y);
+ if(type==="maes")return nthWeekday(y,4,0,2);
+ if(type==="pais")return nthWeekday(y,7,0,2);
+ return null;
+}
+const events=[
+{id:"ano-novo",name:"Ano Novo",emoji:"🎆",color:"#b9a1ff",open1:"#392a68",open2:"#171d3a",theme:"Noite de fogos",date:y=>new Date(y,0,1),description:"Um novo ano começa! Celebre novas ideias, sonhos e possibilidades."},
+{id:"carnaval",name:"Carnaval",emoji:"🎭",color:"#ff78c9",open1:"#67265d",open2:"#30204e",theme:"Folia colorida",date:y=>eventDate("carnaval",y),description:"É dia de Carnaval! Entre no clima de festa, música e cores."},
+{id:"pascoa",name:"Páscoa",emoji:"🐣",color:"#ffcf70",open1:"#69452a",open2:"#3c2a4e",theme:"Páscoa encantada",date:y=>eventDate("pascoa",y),description:"Feliz Páscoa! Um dia de carinho, esperança e renovação."},
+{id:"trabalho",name:"Dia do Trabalho",emoji:"🛠️",color:"#78c7ff",open1:"#17486b",open2:"#1b2947",theme:"Conquistas e trabalho",date:y=>new Date(y,4,1),description:"Hoje é dia de reconhecer o esforço e a dedicação de quem trabalha."},
+{id:"maes",name:"Dia das Mães",emoji:"💐",color:"#ff9dbd",open1:"#6b294a",open2:"#3b2447",theme:"Jardim de carinho",date:y=>eventDate("maes",y),description:"Um dia especial para celebrar o carinho das mães."},
+{id:"namorados",name:"Dia dos Namorados",emoji:"💌",color:"#ff7d8c",open1:"#70283f",open2:"#3d1f43",theme:"Cartas e corações",date:y=>new Date(y,5,12),description:"Um dia para celebrar o carinho, a amizade e o amor."},
+{id:"junina",name:"Festa Junina",emoji:"🎊",color:"#ffc45e",open1:"#6b3a20",open2:"#3c2c27",theme:"Arraiá iluminado",date:y=>new Date(y,5,24),description:"Bandeirinhas no alto: é dia de Festa Junina!"}, 
+{id:"pais",name:"Dia dos Pais",emoji:"👔",color:"#80d6c2",open1:"#20544e",open2:"#1b2e42",theme:"Laços especiais",date:y=>eventDate("pais",y),description:"Um dia para homenagear os pais e figuras paternas."},
+{id:"independencia",name:"Independência do Brasil",emoji:"🇧🇷",color:"#7ee6a5",open1:"#14533c",open2:"#17324a",theme:"Verde e amarelo",date:y=>new Date(y,8,7),description:"Hoje celebramos a Independência do Brasil."},
+{id:"criancas",name:"Dia das Crianças",emoji:"🎈",color:"#ffbd4a",open1:"#75431f",open2:"#4b2d53",theme:"Mundo da imaginação",date:y=>new Date(y,9,12),description:"Feliz Dia das Crianças! Um dia de diversão, brincadeiras e imaginação."},
+{id:"halloween",name:"Halloween",emoji:"🎃",color:"#ff9b55",open1:"#65301c",open2:"#211b3e",theme:"Noite assustadoramente divertida",date:y=>new Date(y,9,31),description:"É Halloween! Um tema de abóboras, fantasias e diversão."},
+{id:"natal",name:"Natal",emoji:"🎄",color:"#6ee7a4",open1:"#14563f",open2:"#182b40",theme:"Natal iluminado",date:y=>new Date(y,11,25),description:"Feliz Natal! Que o dia seja cheio de alegria, união e bons momentos."}
+];
+function startOfLocalDay(date){
+ return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+}
+function occurrence(ev,now){
+ const today=startOfLocalDay(now);
+ const thisDate=startOfLocalDay(ev.date(today.getFullYear()));
+ const tomorrow=new Date(today);
+ tomorrow.setDate(tomorrow.getDate()+1);
+ // O evento abre no dia local configurado e fecha à meia-noite seguinte.
+ if(today.getTime()===thisDate.getTime()){
+  return {date:thisDate,open:true,end:tomorrow};
+ }
+ if(today.getTime()<thisDate.getTime()){
+  return {date:thisDate,open:false};
+ }
+ return {date:startOfLocalDay(ev.date(today.getFullYear()+1)),open:false};
+}
+function fmt(d){return new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"long",year:"numeric"}).format(d)}
+function countdown(target,now){
+ // Sempre mostra o tempo restante arredondado para cima até o próximo segundo.
+ let totalSeconds=Math.max(0,Math.ceil((target.getTime()-now.getTime())/1000));
+ const days=Math.floor(totalSeconds/86400);totalSeconds%=86400;
+ const hours=Math.floor(totalSeconds/3600);totalSeconds%=3600;
+ const mins=Math.floor(totalSeconds/60);const secs=totalSeconds%60;
+ return `${days} dias, ${String(hours).padStart(2,"0")}h ${String(mins).padStart(2,"0")}min ${String(secs).padStart(2,"0")}s`;
+}
+function countdownToEvent(target,now){
+ // Para eventos futuros, conta dias de calendário (10 para 12 = 2 dias),
+ // em vez de dividir as horas restantes por blocos de 24 horas.
+ const today=startOfLocalDay(now);
+ const eventDay=startOfLocalDay(target);
+ const calendarDays=Math.max(0,Math.round((eventDay.getTime()-today.getTime())/86400000));
+ const totalSeconds=Math.max(0,Math.ceil((target.getTime()-now.getTime())/1000));
+ const totalHours=Math.floor(totalSeconds/3600);
+ const mins=Math.floor((totalSeconds%3600)/60);
+ const secs=totalSeconds%60;
+ return `${calendarDays} ${calendarDays===1?"dia":"dias"} de calendário • ${totalHours}h ${String(mins).padStart(2,"0")}min ${String(secs).padStart(2,"0")}s até abrir`;
+}
+let previouslyOpen = new Set();
+let toastTimeout = null;
+function showUnlockToast(ev){
+ const toast=document.getElementById("unlockToast");
+ toast.textContent=`O EVENTO "${ev.name.toUpperCase()}" ESTÁ ABERTO`;
+ toast.style.opacity="1";
+ toast.style.transform="translate(-50%,0)";
+ if(toastTimeout) clearTimeout(toastTimeout);
+ toastTimeout=setTimeout(()=>{
+  toast.style.opacity="0";
+  toast.style.transform="translate(-50%,18px)";
+ },6500);
+}
+function render(){
+ const now=new Date(),grid=document.getElementById("events");
+ const currentlyOpen=new Set();
+ grid.innerHTML="";
+ events.forEach(ev=>{
+  const o=occurrence(ev,now),card=document.createElement("article");
+  card.className="event"+(o.open?" is-open":"");
+  card.style.setProperty("--event-color",ev.color);card.style.setProperty("--open1",ev.open1);card.style.setProperty("--open2",ev.open2);
+  if(o.open) currentlyOpen.add(ev.id);
+  const status=o.open?'<span class="status open">● DESBLOQUEADO</span>':'<span class="status">🔒 BLOQUEADO</span>';
+  const count=o.open?`Fecha em: ${countdown(o.end,now)}`:`Desbloqueia em: ${countdownToEvent(o.date,now)}`;
+  card.innerHTML=`<div class="emoji">${ev.emoji}</div><h2>${ev.name}</h2><div class="date">${fmt(o.date)}</div>${status}<div class="countdown">${count}</div>${o.open?`<div class="theme-label">Tema ativo: ${ev.theme}</div>`:""}<button type="button">${o.open?"Entrar no evento":"Ver evento"}</button>`;
+  card.querySelector("button").addEventListener("click",()=>showEvent(ev));
+  grid.appendChild(card);
+ });
+ // Notifica somente na transição de bloqueado para aberto, sem repetir a cada segundo.
+ currentlyOpen.forEach(id=>{
+  if(!previouslyOpen.has(id)){
+   const ev=events.find(item=>item.id===id);
+   if(ev) showUnlockToast(ev);
+  }
+ });
+ previouslyOpen=currentlyOpen;
+}
+function showEvent(ev){
+ const now=new Date(),o=occurrence(ev,now),dlg=document.getElementById("eventDialog");
+ dlg.style.setProperty("--modal-color",ev.color);dlg.style.setProperty("--modal-bg1",ev.open1);dlg.style.setProperty("--modal-bg2",ev.open2);
+ document.getElementById("dialogTitle").textContent=ev.emoji+" "+ev.name;
+ if(o.open){
+  document.getElementById("dialogMessage").textContent=ev.description+" O tema especial deste evento está ativado: "+ev.theme+".";
+  document.getElementById("dialogCountdown").textContent="ESTE EVENTO FECHA EM: "+countdown(o.end,now);
+ }else{
+  document.getElementById("dialogMessage").textContent="Esse Evento Tá Bloqueado No Momento, Espere!";
+  document.getElementById("dialogCountdown").textContent="Desbloqueia em "+countdownToEvent(o.date,now);
+ }
+ dlg.showModal();
+}
+document.getElementById("closeDialog").addEventListener("click",()=>document.getElementById("eventDialog").close());
+render();setInterval(render,1000);
+</script>
+</body>
+</html>
